@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GRA QA Drift Check</title>
+<meta name="description" content="Upload weekly GRA QA report exports and run the pooled/per-locale rate trend, mix-shift, and self-contradiction drift checks entirely in your browser." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232f6fed'/%3E%3Cpath d='M6 22 L13 14 L18 18 L26 8' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --card-bg: #ffffff;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #e3e3e6;
+    --accent: #2f6fed;
+    --yes: #1a7f37;
+    --yes-bg: #e6f4ea;
+    --no-bg: #f1f1f3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15161a;
+      --card-bg: #1e2025;
+      --text: #e8e8ea;
+      --muted: #9a9ba3;
+      --border: #30323a;
+      --accent: #5b8def;
+      --yes: #4caf6e;
+      --yes-bg: #173021;
+      --no-bg: #2a2b30;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15161a;
+    --card-bg: #1e2025;
+    --text: #e8e8ea;
+    --muted: #9a9ba3;
+    --border: #30323a;
+    --accent: #5b8def;
+    --yes: #4caf6e;
+    --yes-bg: #173021;
+    --no-bg: #2a2b30;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 16px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  header { margin-bottom: 20px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 16px; line-height: 1.5; }
+  .upload-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  input[type="file"] { display: block; margin-bottom: 10px; max-width: 100%; }
+  #fileList { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #status { color: var(--muted); font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+  }
+  .card h2 { font-size: 16px; margin: 0 0 6px; }
+  .note { color: var(--muted); font-size: 13px; margin: 0 0 12px; line-height: 1.4; }
+  .tbl { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .tbl th, .tbl td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .tbl th { color: var(--muted); font-weight: 600; }
+  .badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .badge.yes { background: var(--yes-bg); color: var(--yes); }
+  .badge.no { background: var(--no-bg); color: var(--muted); }
+  .badge.muted { background: var(--no-bg); color: var(--muted); }
+  .statrow { display: flex; flex-wrap: wrap; gap: 20px; }
+  .stat { min-width: 140px; }
+  .statvalue { font-size: 22px; font-weight: 700; }
+  .statlabel { color: var(--muted); font-size: 12px; }
+  .chartwrap { width: 100%; }
+  svg.chart { width: 100%; height: auto; }
+  .gridline { stroke: var(--border); stroke-width: 1; }
+  .baseline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 3; }
+  .axislabel { fill: var(--muted); font-size: 10px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 6px; }
+  .legenditem { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+  footer { color: var(--muted); font-size: 12px; margin: 24px 0 8px; text-align: center; }
+  code { background: var(--no-bg); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>GRA QA Drift Check</h1>
+    <p class="sub">
+      Upload <code>Weekly_report_*.xlsx</code> files (any number of weeks, any locales) and this page runs the
+      pooled/per-locale rate trend, new-annotator mix-shift check, annotator-concentration check, and the
+      intra-annotator self-contradiction check &mdash; all in your browser. Nothing is uploaded anywhere; the files
+      never leave this tab. For a reliable trend, upload the full history each time, not just the newest week.
+    </p>
+  </header>
+
+  <div class="upload-card">
+    <input id="fileInput" type="file" accept=".xlsx" multiple />
+    <div id="fileList">No files selected</div>
+    <button id="analyzeBtn" disabled>Analyze</button>
+    <div id="status"></div>
+  </div>
+
+  <div id="results"></div>
+
+  <footer>Runs entirely client-side &middot; see <code>core.js</code> for the analysis logic</footer>
+</div>
+
+<script
+  src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+  integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"
+  crossorigin="anonymous"
+></script>
+<script src="core.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>

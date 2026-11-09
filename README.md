@@ -30,25 +30,27 @@ no data, only code; your team's files never leave their own browser tab.
    self-contradiction rate isn't rising month over month (rules out "it's just noise").
    A flagged locale still needs a human to read the underlying tables before acting.
 
-## Hosting on GitHub Pages
+## Running it
 
-This is a static site — no build step, no server, no dependencies to install.
+This repo (`rakshit-naidu-gt/gra-qa-drift-dashboard`) is **private**, and GitHub Pages
+for a private repo requires a paid GitHub plan (Pro/Team/Enterprise) that this account
+doesn't have — so there's no hosted URL for now. Anyone with access to the repo runs it
+locally instead; it's a static page, so this takes seconds:
 
-1. Create a **private** repo if the QA data being analyzed should stay internal.
-   (GitHub Pages serves a **public** repo's Pages site to anyone with the URL; a
-   private repo's Pages site requires GitHub Pro/Team/Enterprise to also be private —
-   check your plan before relying on that. If you're not on such a plan, don't put
-   real annotator IDs into any *committed* file; the page itself never commits data
-   since nothing persists beyond the browser session, so the tool itself is safe to
-   host publicly either way.)
-2. Push this folder's contents to that repo's default branch.
-3. In the repo settings, enable **Pages**, source: deploy from a branch, branch: your
-   default branch, folder: `/ (root)`.
-4. GitHub gives you a URL like `https://<org-or-user>.github.io/<repo>/` — share that
-   with your team.
+1. Get repo access (ask the repo owner to add you as a collaborator), then clone it:
+   ```
+   git clone git@github.com:rakshit-naidu-gt/gra-qa-drift-dashboard.git
+   ```
+2. Open `index.html` directly in a browser (double-click it, or `open index.html` on
+   macOS) — this works as-is, no server needed, since the page only reads files the
+   user explicitly selects via the file picker.
+3. Follow the **Using it** steps above.
 
-To update it later, just push changes to the same branch; Pages redeploys
-automatically.
+If this account (or a teammate's) is ever upgraded to a plan with private Pages
+support, the repo can be switched over to a hosted URL with no code changes: enable
+Pages in the repo settings (source: deploy from branch `master`, folder `/`), and share
+the resulting `https://<org-or-user>.github.io/gra-qa-drift-dashboard/` link instead of
+the clone-and-open-locally instructions above.
 
 ## Files
 

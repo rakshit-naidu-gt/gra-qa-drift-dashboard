@@ -79,6 +79,8 @@
         const corrA = nullIfEmpty(row[idx[`T1_r${k}_correctness_audit`]]);
         const npeA = nullIfEmpty(row[idx[`T1_r${k}_not_popular_entity_audit`]]);
         if (corr === null && corrA === null && npeA === null) continue;
+        const complA = nullIfEmpty(row[idx[`T1_r${k}_completeness_audit`]]);
+        const utilA = nullIfEmpty(row[idx[`T1_r${k}_utility_audit`]]);
         const reasonA = nullIfEmpty(row[idx[`T1_r${k}_incorrectness_reason_audit`]]);
         const textCol = idx[`T1_ranked_${k - 1}_result`];
         const text = textCol !== undefined ? nullIfEmpty(row[textCol]) : null;
@@ -93,6 +95,8 @@
           rank: k,
           npe_audit: npeA,
           correctness_qc: corrA,
+          completeness_qc: complA,
+          utility_qc: utilA,
           reason_qc: reasonA,
           answer_norm: normText(text),
         });
@@ -105,8 +109,21 @@
     return rec.time_sensitive === "non_time_sensitive" && rec.npe_audit === "A_Yes";
   }
 
+  // A rating axis is "field name" -> the record field holding its QC verdict.
+  const METRICS = {
+    correctness: { field: "correctness_qc", label: "correctness" },
+    completeness: { field: "completeness_qc", label: "completeness" },
+    utility: { field: "utility_qc", label: "utility" },
+  };
+  const METRIC_KEYS = Object.keys(METRICS);
+
+  function metricPass(rec, metric) {
+    const def = METRICS[metric] || METRICS.correctness;
+    return rec[def.field] === "A_Yes";
+  }
+
   function isCorrect(rec) {
-    return rec.correctness_qc === "A_Yes";
+    return metricPass(rec, "correctness");
   }
 
   // ---------- stats ----------
@@ -155,10 +172,11 @@
     return { stat, p };
   }
 
-  function rateN(recs) {
+  function rateN(recs, metric) {
+    metric = metric || "correctness";
     const n = recs.length;
     if (n === 0) return { rate: NaN, n: 0, x: 0 };
-    const x = recs.reduce((s, r) => s + (isCorrect(r) ? 1 : 0), 0);
+    const x = recs.reduce((s, r) => s + (metricPass(r, metric) ? 1 : 0), 0);
     return { rate: (100 * x) / n, n, x };
   }
 
@@ -185,32 +203,34 @@
     return Object.keys(bounds).sort((a, b) => (bounds[a].min < bounds[b].min ? -1 : 1));
   }
 
-  function pooledByPeriod(population, baselinePeriod) {
+  function pooledByPeriod(population, baselinePeriod, metric) {
+    metric = metric || "correctness";
     const periods = orderedPeriods(population);
     const byPeriod = {};
     periods.forEach((p) => {
       byPeriod[p] = population.filter((r) => r.period === p);
     });
     const baseline = baselinePeriod ? byPeriod[baselinePeriod] || [] : byPeriod[periods[0]] || [];
-    const base = rateN(baseline);
+    const base = rateN(baseline, metric);
     return periods.map((p) => {
       const sub = byPeriod[p];
-      const { rate, n, x } = rateN(sub);
+      const { rate, n, x } = rateN(sub, metric);
       const { p: pval } = twoPropTest(base.x, base.n, x, n);
       return { period: p, n, rate, deltaVsBaseline: rate - base.rate, p: pval, dateMin: periodBounds(population)[p].min, dateMax: periodBounds(population)[p].max };
     });
   }
 
-  function perLocaleByPeriod(population, baselinePeriod) {
+  function perLocaleByPeriod(population, baselinePeriod, metric) {
+    metric = metric || "correctness";
     const periods = orderedPeriods(population);
     const base = baselinePeriod || periods[0];
     const out = {};
     for (const loc of LOCALES) {
       const baseSub = population.filter((r) => r.locale === loc && r.period === base);
-      const baseStat = rateN(baseSub);
+      const baseStat = rateN(baseSub, metric);
       out[loc] = periods.map((p) => {
         const sub = population.filter((r) => r.locale === loc && r.period === p);
-        const { rate, n, x } = rateN(sub);
+        const { rate, n, x } = rateN(sub, metric);
         const { p: pval } = twoPropTest(baseStat.x, baseStat.n, x, n);
         return { period: p, n, rate, deltaVsBaseline: rate - baseStat.rate, p: pval };
       });
@@ -453,11 +473,14 @@
 
   const GRADrift = {
     LOCALES,
+    METRICS,
+    METRIC_KEYS,
     normText,
     toDateOnly,
     extractRecords,
     isPopulation,
     isCorrect,
+    metricPass,
     twoPropTest,
     mcnemar,
     rateN,

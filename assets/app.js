@@ -249,51 +249,18 @@
     );
     resultsEl.appendChild(summaryCard);
 
-    // --- pooled by period ---
-    const pooled = GRADrift.pooledByPeriod(population, baselinePeriod);
-    const pooledRows = pooled.map((p) => [
-      el("td", null, [p.period]),
-      el("td", null, [String(p.n)]),
-      el("td", null, [fmtPct(p.rate)]),
-      el("td", null, [fmtDelta(p.deltaVsBaseline)]),
-      el("td", null, [fmtP(p.p)]),
-      el("td", null, [sigBadge(p.p)]),
-    ]);
-    resultsEl.appendChild(
-      section(
-        `Pooled correctness rate by period (baseline: ${baselinePeriod})`,
-        "Δ and p are versus the baseline period (earliest period in the uploaded set).",
-        table(["Period", "n", "Rate", "Δ vs baseline (pp)", "p", "Significant?"], pooledRows)
-      )
-    );
+    // --- pooled + per-locale, for each rating axis (correctness, completeness, utility) ---
+    // Rendered as tabs: one axis's tables/charts are visible at a time, switchable without re-running the analysis.
+    let perLocale; // keep correctness' per-locale series around for mix-shift/auto-flag below
+    const tabButtons = [];
+    const tabPanels = [];
+    GRADrift.METRIC_KEYS.forEach((metric, metricIdx) => {
+      const label = GRADrift.METRICS[metric].label;
+      const panel = el("div", { class: "tabpanel" + (metricIdx === 0 ? "" : " hidden") }, []);
 
-    // --- pooled chart ---
-    const pooledSeries = [
-      {
-        label: "Pooled",
-        color: PALETTE.pooled,
-        points: pooled.map((p, i) => ({ x: i, y: p.rate })),
-      },
-    ];
-    resultsEl.appendChild(
-      section(
-        "Pooled rate trend",
-        null,
-        lineChart(pooledSeries, { baseline: pooled[0] ? pooled[0].rate : null })
-      )
-    );
-
-    // --- per-locale by period ---
-    const perLocale = GRADrift.perLocaleByPeriod(population, baselinePeriod);
-    const locSeries = GRADrift.LOCALES.map((loc) => ({
-      label: loc,
-      color: PALETTE[loc],
-      points: (perLocale[loc] || []).map((p, i) => ({ x: i, y: p.rate })),
-    }));
-    resultsEl.appendChild(section("Per-locale rate trend", null, lineChart(locSeries)));
-
-    GRADrift.LOCALES.forEach((loc) => {
-      const rows = (perLocale[loc] || []).map((p) => [
+      // pooled table
+      const pooled = GRADrift.pooledByPeriod(population, baselinePeriod, metric);
+      const pooledRows = pooled.map((p) => [
         el("td", null, [p.period]),
         el("td", null, [String(p.n)]),
         el("td", null, [fmtPct(p.rate)]),
@@ -301,14 +268,77 @@
         el("td", null, [fmtP(p.p)]),
         el("td", null, [sigBadge(p.p)]),
       ]);
-      resultsEl.appendChild(
+      panel.appendChild(
         section(
-          `${loc}: rate by period`,
-          null,
-          table(["Period", "n", "Rate", "Δ vs baseline (pp)", "p", "Significant?"], rows)
+          `Pooled ${label} rate by period (baseline: ${baselinePeriod})`,
+          "Δ and p are versus the baseline period (earliest period in the uploaded set).",
+          table(["Period", "n", "Rate", "Δ vs baseline (pp)", "p", "Significant?"], pooledRows)
         )
       );
+
+      // pooled chart
+      const pooledSeries = [
+        {
+          label: "Pooled",
+          color: PALETTE.pooled,
+          points: pooled.map((p, i) => ({ x: i, y: p.rate })),
+        },
+      ];
+      panel.appendChild(
+        section(
+          `Pooled ${label} rate trend`,
+          null,
+          lineChart(pooledSeries, { baseline: pooled[0] ? pooled[0].rate : null })
+        )
+      );
+
+      // per-locale chart + tables
+      const perLocaleForMetric = GRADrift.perLocaleByPeriod(population, baselinePeriod, metric);
+      if (metric === "correctness") perLocale = perLocaleForMetric;
+      const locSeries = GRADrift.LOCALES.map((loc) => ({
+        label: loc,
+        color: PALETTE[loc],
+        points: (perLocaleForMetric[loc] || []).map((p, i) => ({ x: i, y: p.rate })),
+      }));
+      panel.appendChild(section(`Per-locale ${label} rate trend`, null, lineChart(locSeries)));
+
+      GRADrift.LOCALES.forEach((loc) => {
+        const rows = (perLocaleForMetric[loc] || []).map((p) => [
+          el("td", null, [p.period]),
+          el("td", null, [String(p.n)]),
+          el("td", null, [fmtPct(p.rate)]),
+          el("td", null, [fmtDelta(p.deltaVsBaseline)]),
+          el("td", null, [fmtP(p.p)]),
+          el("td", null, [sigBadge(p.p)]),
+        ]);
+        panel.appendChild(
+          section(
+            `${loc}: ${label} rate by period`,
+            null,
+            table(["Period", "n", "Rate", "Δ vs baseline (pp)", "p", "Significant?"], rows)
+          )
+        );
+      });
+
+      const btn = el("button", { type: "button", class: "tab" + (metricIdx === 0 ? " active" : "") }, [
+        label[0].toUpperCase() + label.slice(1),
+      ]);
+      btn.addEventListener("click", () => {
+        tabButtons.forEach((b) => b.classList.remove("active"));
+        tabPanels.forEach((p) => p.classList.add("hidden"));
+        btn.classList.add("active");
+        panel.classList.remove("hidden");
+      });
+      tabButtons.push(btn);
+      tabPanels.push(panel);
     });
+
+    resultsEl.appendChild(el("div", { class: "tabsnav" }, tabButtons));
+    resultsEl.appendChild(el("div", { class: "tabpanels" }, tabPanels));
+
+    resultsEl.appendChild(
+      el("h1", { class: "metricheading" }, ["Annotator / QC behavior checks (correctness-based)"])
+    );
 
     // --- mix-shift ---
     const mixRows = GRADrift.mixShiftByPeriod(population);

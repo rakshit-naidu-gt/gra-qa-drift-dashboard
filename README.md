@@ -7,9 +7,9 @@ intra-annotator self-contradiction check.
 
 **Everything runs in the browser.** Uploaded `.xlsx` files are parsed and analyzed
 client-side with [SheetJS](https://sheetjs.com/) — nothing is uploaded to a server,
-which is what makes it safe to host this page publicly on GitHub Pages even though the
-underlying QA data (per-annotator performance) is sensitive. The page itself contains
-no data, only code; your team's files never leave their own browser tab.
+which is what makes it safe to run even though the underlying QA data (per-annotator
+performance) is sensitive. The page itself contains no data, only code; your team's
+files never leave their own browser tab.
 
 ## Using it
 
@@ -40,23 +40,8 @@ no data, only code; your team's files never leave their own browser tab.
 
 ## Running it
 
-This repo (`rakshit-naidu-gt/gra-qa-drift-dashboard`) is **public**, so GitHub Pages
-(free on public repos) can host it directly — no server or build step needed since it's
-a static page, and nothing sensitive is in the repo (see the data-safety note above and
-`.gitignore`; only code is tracked, never the weekly `.xlsx` reports).
-
-### Option A: hosted URL via GitHub Pages (recommended)
-
-1. On GitHub: **Settings → Pages**.
-2. Under **Build and deployment → Source**, choose **Deploy from a branch**.
-3. Set **Branch** to `master` and the folder to `/ (root)`, then **Save**.
-4. After a minute or two, the page is live at
-   `https://rakshit-naidu-gt.github.io/gra-qa-drift-dashboard/`. Share that link — anyone
-   who opens it still only runs the analysis in their own browser; no QA data ever
-   touches GitHub or any server.
-5. Follow the **Using it** steps above.
-
-### Option B: run it locally
+This repo (`rakshit-naidu-gt/gra-qa-drift-dashboard`) is public; anyone with the link
+can clone it and run it locally. It's a static page, so this takes seconds:
 
 1. Clone it:
    ```

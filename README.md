@@ -1,8 +1,9 @@
 # GRA QA Drift Check
 
 A single-page tool for running the weekly GRA QA drift checks: pooled and per-locale
-correctness-rate trend, the new-annotator mix-shift check, annotator-volume
-concentration, and the intra-annotator self-contradiction check.
+rate trend across three rating axes (correctness, completeness, utility — shown as
+tabs), the new-annotator mix-shift check, annotator-volume concentration, and the
+intra-annotator self-contradiction check.
 
 **Everything runs in the browser.** Uploaded `.xlsx` files are parsed and analyzed
 client-side with [SheetJS](https://sheetjs.com/) — nothing is uploaded to a server,
@@ -22,8 +23,15 @@ no data, only code; your team's files never leave their own browser tab.
    default is the earliest uploaded period, but that's often a short, low-volume week
    that gives a noisy reference point — prefer a period with good volume that you know
    reflects normal/expected performance.
-5. Read the tables and charts. The **Auto-flagged drift candidates** table at the
-   bottom is a trigger for investigation, not a verdict — it flags a locale only when
+5. Use the **Correctness / Completeness / Utility tabs** to switch between the three
+   rating axes. Each tab has the same layout: a pooled rate table + trend chart, then a
+   per-locale trend chart and one table per locale. Switching tabs just toggles what's
+   already rendered — no re-analysis needed.
+6. Read the tables and charts. The mix-shift, annotator-concentration, and
+   self-contradiction checks below the tabs are correctness-only (they're about
+   annotator/QC behavior, not a rating axis) and always visible. The
+   **Auto-flagged drift candidates** table at the bottom is a trigger for
+   investigation, not a verdict — it flags a locale only when
    all three of: (a) the last 3 periods sit on the same side of the baseline and are
    each individually significant (p<0.10), (b) new-annotator share in the latest
    period is under 10% (rules out a hiring/mix-shift explanation), and (c) the
@@ -32,12 +40,25 @@ no data, only code; your team's files never leave their own browser tab.
 
 ## Running it
 
-This repo (`rakshit-naidu-gt/gra-qa-drift-dashboard`) is **private**, and GitHub Pages
-for a private repo requires a paid GitHub plan (Pro/Team/Enterprise) that this account
-doesn't have — so there's no hosted URL for now. Anyone with access to the repo runs it
-locally instead; it's a static page, so this takes seconds:
+This repo (`rakshit-naidu-gt/gra-qa-drift-dashboard`) is **public**, so GitHub Pages
+(free on public repos) can host it directly — no server or build step needed since it's
+a static page, and nothing sensitive is in the repo (see the data-safety note above and
+`.gitignore`; only code is tracked, never the weekly `.xlsx` reports).
 
-1. Get repo access (ask the repo owner to add you as a collaborator), then clone it:
+### Option A: hosted URL via GitHub Pages (recommended)
+
+1. On GitHub: **Settings → Pages**.
+2. Under **Build and deployment → Source**, choose **Deploy from a branch**.
+3. Set **Branch** to `master` and the folder to `/ (root)`, then **Save**.
+4. After a minute or two, the page is live at
+   `https://rakshit-naidu-gt.github.io/gra-qa-drift-dashboard/`. Share that link — anyone
+   who opens it still only runs the analysis in their own browser; no QA data ever
+   touches GitHub or any server.
+5. Follow the **Using it** steps above.
+
+### Option B: run it locally
+
+1. Clone it:
    ```
    git clone git@github.com:rakshit-naidu-gt/gra-qa-drift-dashboard.git
    ```
@@ -45,12 +66,6 @@ locally instead; it's a static page, so this takes seconds:
    macOS) — this works as-is, no server needed, since the page only reads files the
    user explicitly selects via the file picker.
 3. Follow the **Using it** steps above.
-
-If this account (or a teammate's) is ever upgraded to a plan with private Pages
-support, the repo can be switched over to a hosted URL with no code changes: enable
-Pages in the repo settings (source: deploy from branch `master`, folder `/`), and share
-the resulting `https://<org-or-user>.github.io/gra-qa-drift-dashboard/` link instead of
-the clone-and-open-locally instructions above.
 
 ## Files
 

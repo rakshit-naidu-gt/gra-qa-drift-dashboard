@@ -7,7 +7,7 @@
  *
  * Mirrors the Python reference pipeline in GRAv2_verification/scripts/
  * (01_build_long.py, 02_population_and_pooled.py, 10/12_*_persistence.py,
- * 14_mix_shift_consolidated.py, 15_intra_annotator_consistency.py).
+ * 15_intra_annotator_consistency.py).
  */
 (function (root) {
   "use strict";
@@ -273,47 +273,6 @@
     return out;
   }
 
-  // ---------- mix-shift (new annotator) check ----------
-
-  function mixShiftByPeriod(population) {
-    const globalFirstSeen = {};
-    for (const r of population) {
-      if (!r.annotator) continue;
-      if (!globalFirstSeen[r.annotator] || r.date < globalFirstSeen[r.annotator]) {
-        globalFirstSeen[r.annotator] = r.date;
-      }
-    }
-    const periods = orderedPeriods(population);
-    const bounds = periodBounds(population);
-    const rows = [];
-    for (const period of periods) {
-      const start = bounds[period].min;
-      for (const loc of LOCALES) {
-        const sub = population.filter((r) => r.locale === loc && r.period === period);
-        if (sub.length === 0) {
-          rows.push({ period, locale: loc, nTotal: 0, nNew: 0, newSharePct: NaN, rateNew: NaN, rateContinuing: NaN, rateAll: NaN });
-          continue;
-        }
-        const isNew = sub.map((r) => r.annotator && globalFirstSeen[r.annotator] >= start);
-        const nNew = isNew.filter(Boolean).length;
-        const nTotal = sub.length;
-        const newRows = sub.filter((_, i) => isNew[i]);
-        const oldRows = sub.filter((_, i) => !isNew[i]);
-        rows.push({
-          period,
-          locale: loc,
-          nTotal,
-          nNew,
-          newSharePct: (100 * nNew) / nTotal,
-          rateNew: newRows.length ? rateN(newRows).rate : NaN,
-          rateContinuing: oldRows.length ? rateN(oldRows).rate : NaN,
-          rateAll: rateN(sub).rate,
-        });
-      }
-    }
-    return rows;
-  }
-
   // ---------- annotator concentration (top annotator per locale per period) ----------
 
   function concentrationByPeriod(population) {
@@ -420,12 +379,10 @@
   // A locale is flagged as a drift candidate if:
   //  (a) its per-locale rate has moved in the same direction vs baseline for
   //      the last >=3 periods (monotonic run), with the latest period's p<0.10
-  //  (b) new-annotator share in the latest period is low (<10%) -- rules out
-  //      a hiring/mix-shift explanation
-  //  (c) self-contradiction rate for that locale is flat or falling across
+  //  (b) self-contradiction rate for that locale is flat or falling across
   //      the last two months with data -- rules out "it's just noise"
 
-  function autoFlag(perLocaleSeries, mixShiftRows, contradictionSummary) {
+  function autoFlag(perLocaleSeries, contradictionSummary) {
     const flags = {};
     for (const loc of LOCALES) {
       const series = perLocaleSeries[loc] || [];
@@ -446,10 +403,6 @@
       const monotonicDown = sameSign && signs[0] < 0;
       const trendOk = sameSign && allSignificant;
 
-      const mixLatestPeriod = series[series.length - 1].period;
-      const mixRow = mixShiftRows.find((m) => m.period === mixLatestPeriod && m.locale === loc);
-      const mixOk = mixRow ? mixRow.newSharePct < 10 : true;
-
       const months = Object.keys(contradictionSummary.perLocaleMonth[loc] || {}).sort();
       let noiseOk = true;
       if (months.length >= 2) {
@@ -461,10 +414,9 @@
       }
 
       flags[loc] = {
-        flagged: trendOk && mixOk && noiseOk,
+        flagged: trendOk && noiseOk,
         direction: monotonicUp ? "more lenient" : monotonicDown ? "stricter" : "no clear trend",
         trendOk,
-        mixOk,
         noiseOk,
       };
     }
@@ -490,7 +442,6 @@
     pooledByPeriod,
     perLocaleByPeriod,
     rollingRate,
-    mixShiftByPeriod,
     concentrationByPeriod,
     selfContradiction,
     summarizeContradictions,

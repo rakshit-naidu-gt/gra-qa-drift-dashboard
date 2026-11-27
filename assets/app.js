@@ -251,7 +251,7 @@
 
     // --- pooled + per-locale, for each rating axis (correctness, completeness, utility) ---
     // Rendered as tabs: one axis's tables/charts are visible at a time, switchable without re-running the analysis.
-    let perLocale; // keep correctness' per-locale series around for mix-shift/auto-flag below
+    let perLocale; // keep correctness' per-locale series around for auto-flag below
     const tabButtons = [];
     const tabPanels = [];
     GRADrift.METRIC_KEYS.forEach((metric, metricIdx) => {
@@ -340,28 +340,6 @@
       el("h1", { class: "metricheading" }, ["Annotator / QC behavior checks (correctness-based)"])
     );
 
-    // --- mix-shift ---
-    const mixRows = GRADrift.mixShiftByPeriod(population);
-    const mixRowsEls = mixRows.map((r) => [
-      el("td", null, [r.period]),
-      el("td", null, [r.locale]),
-      el("td", null, [String(r.nTotal)]),
-      el("td", null, [String(r.nNew)]),
-      el("td", null, [fmtPct(r.newSharePct)]),
-      el("td", null, [fmtPct(r.rateNew)]),
-      el("td", null, [fmtPct(r.rateContinuing)]),
-    ]);
-    resultsEl.appendChild(
-      section(
-        "New-annotator mix-shift check",
-        "\"New\" = this annotator's first-seen date (across the whole uploaded corpus) is on/after this period's start. Low new-share + stable rate rules out a hiring/mix-shift explanation for any rate move.",
-        table(
-          ["Period", "Locale", "n", "n new", "New share", "Rate (new)", "Rate (continuing)"],
-          mixRowsEls
-        )
-      )
-    );
-
     // --- concentration ---
     const concRows = GRADrift.concentrationByPeriod(population);
     const concRowsEls = concRows.map((r) => [
@@ -421,7 +399,7 @@
     resultsEl.appendChild(section("Self-contradiction rate over time, per locale", "Months with fewer than 5 matched groups are omitted as too small to trust.", lineChart(contraSeries)));
 
     // --- auto-flag ---
-    const flags = GRADrift.autoFlag(perLocale, mixRows, contraSummary);
+    const flags = GRADrift.autoFlag(perLocale, contraSummary);
     const flagRows = GRADrift.LOCALES.map((loc) => {
       const f = flags[loc];
       const verdict = f.flagged
@@ -431,13 +409,13 @@
         el("td", null, [loc]),
         el("td", null, [verdict]),
         el("td", null, [f.direction || "–"]),
-        el("td", null, [f.reason || `trend:${f.trendOk ? "✓" : "✗"} mix-ruled-out:${f.mixOk ? "✓" : "✗"} noise-not-rising:${f.noiseOk ? "✓" : "✗"}`]),
+        el("td", null, [f.reason || `trend:${f.trendOk ? "✓" : "✗"} noise-not-rising:${f.noiseOk ? "✓" : "✗"}`]),
       ];
     });
     resultsEl.appendChild(
       section(
         "Auto-flagged drift candidates",
-        "Heuristic: flagged only if (a) the per-locale rate moved in the same direction vs. baseline for the last 3 periods with p<0.10, (b) new-annotator share in the latest period is <10% (rules out hiring/mix shift), and (c) self-contradiction rate isn't rising month over month (rules out noise). This is a trigger for investigation, not a final verdict — read the underlying tables before acting.",
+        "Heuristic: flagged only if (a) the per-locale rate moved in the same direction vs. baseline for the last 3 periods with p<0.10, and (b) self-contradiction rate isn't rising month over month (rules out noise). This is a trigger for investigation, not a final verdict — read the underlying tables before acting.",
         table(["Locale", "Verdict", "Direction", "Conditions"], flagRows)
       )
     );
